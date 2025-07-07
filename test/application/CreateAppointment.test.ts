@@ -1,4 +1,3 @@
-// test/application/CreateAppointment.test.ts
 import { CreateAppointment } from "../../src/application/CreateAppointment";
 import { AppointmentRepository } from "../../src/domain/repositories/AppointmentRepository";
 import { Appointment } from "../../src/domain/entities/Appointment";
