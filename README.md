@@ -1,4 +1,4 @@
-# User Service
+# BACKEND INDRA
 
 Servicio de usuarios con arquitectura hexagonal y documentación Swagger.
 
