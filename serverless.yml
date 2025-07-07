@@ -1,0 +1,160 @@
+service: user-service
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  profile: default
+  region: us-east-1
+  stage: dev
+  environment:
+    SNS_TOPIC_PE_ARN: !Ref SNSTopicPE
+    SNS_TOPIC_CL_ARN: !Ref SNSTopicCL
+    SQS_PE_URL: !Ref SQSPE
+    SQS_CL_URL: !Ref SQSCL
+    EVENT_BUS_NAME: !Ref EventBridgeBus
+    CONFIRM_SQS_URL: !Ref ConfirmSQS
+    APPOINTMENT_TABLE: Appointments
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:*
+        - sns:*
+        - sqs:*
+        - events:*
+      Resource: "*"
+
+functions:
+  appointment:
+    handler: src/infrastructure/api/handlers/appointmentHandler.handler
+    events:
+      - httpApi:
+          path: /appointments
+          method: POST
+      - httpApi:
+          path: /appointments/{insuredId}
+          method: GET
+
+  appointment_pe:
+    handler: src/infrastructure/api/handlers/appointmentPEHandler.handler
+    events:
+      - sqs:
+          arn: !GetAtt SQSPE.Arn
+
+  appointment_cl:
+    handler: src/infrastructure/api/handlers/appointmentCLHandler.handler
+    events:
+      - sqs:
+          arn: !GetAtt SQSCL.Arn
+
+  appointment_confirm:
+    handler: src/infrastructure/api/handlers/appointmentStatusHandler.handler
+    events:
+      - sqs:
+          arn: !GetAtt ConfirmSQS.Arn
+
+plugins:
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    httpPort: 3000
+    noPrependStageInUrl: true
+
+resources:
+  Resources:
+    AppointmentsDynamoDBTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Appointments
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: insuredId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: insuredId-index
+            KeySchema:
+              - AttributeName: insuredId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 1
+              WriteCapacityUnits: 1
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    SNSTopicPE:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: SNSTopicPE
+    SNSTopicCL:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: SNSTopicCL
+    SQSPE:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: SQS_PE
+    SQSCL:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: SQS_CL
+    SNSPEtoSQSPE:
+      Type: AWS::SNS::Subscription
+      Properties:
+        TopicArn: !Ref SNSTopicPE
+        Protocol: sqs
+        Endpoint: !GetAtt SQSPE.Arn
+        FilterPolicy:
+          countryISO:
+            - PE
+
+    SNSCLtoSQSCL:
+      Type: AWS::SNS::Subscription
+      Properties:
+        TopicArn: !Ref SNSTopicCL
+        Protocol: sqs
+        Endpoint: !GetAtt SQSCL.Arn
+        FilterPolicy:
+          countryISO:
+            - CL
+    EventBridgeBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: AppointmentEventBus
+
+    EventBridgeToSQS:
+      Type: AWS::Events::Rule
+      Properties:
+        EventBusName: !Ref EventBridgeBus
+        EventPattern:
+          source:
+            - user-service
+          detail-type:
+            - CustomEvent
+        Targets:
+          - Arn: !GetAtt ConfirmSQS.Arn
+            Id: "TargetSQS"
+
+    ConfirmSQS:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ConfirmSQS
+
+outputs:
+  SNSTopicPEArn:
+    Value: !Ref SNSTopicPE
+  SNSTopicCLArn:
+    Value: !Ref SNSTopicCL
+  SQSPEUrl:
+    Value: !Ref SQSPE
+  SQSCLUrl:
+    Value: !Ref SQSCL
+  EventBridgeBusName:
+    Value: !Ref EventBridgeBus
+  ConfirmSQSUrl:
+    Value: !Ref ConfirmSQS
