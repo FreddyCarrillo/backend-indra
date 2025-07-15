@@ -73,12 +73,11 @@ src/
 Representa una cita médica agendada.
 
 ```ts
-// src/domain/entities/Appointment.ts
 export type AppointmentStatus = 'pending' | 'completed';
 
 export class Appointment {
   constructor(
-    public id: string, // UUID
+    public id: string,
     public insuredId: string,
     public scheduleId: number,
     public countryISO: 'PE' | 'CL',
@@ -177,10 +176,4 @@ Para ejecutar los tests del proyecto, usa:
 
 ```bash
 npm test
-```
-
-o si usas yarn:
-
-```bash
-yarn test
 ```
