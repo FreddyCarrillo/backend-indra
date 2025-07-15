@@ -1,6 +1,6 @@
 # BACKEND INDRA
 
-Servicio de usuarios con arquitectura hexagonal y documentación Swagger.
+Servicio de agendamiento de cita médica con arquitectura hexagonal y documentación Swagger.
 
 ## 🚀 Comandos disponibles
 
