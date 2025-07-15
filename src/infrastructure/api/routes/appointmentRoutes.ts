@@ -13,9 +13,8 @@ router.post("/appointments", async (req, res) => {
     }
 
     const appointment = await dependencies.createAppointment.execute(body);
-    const topicArn = body.countryISO === "PE"
-      ? process.env.SNS_TOPIC_PE_ARN
-      : process.env.SNS_TOPIC_CL_ARN;
+    const topicArn = process.env.SNS_TOPIC_ARN;
+
     await messaging.publishToSns(topicArn!, appointment);
 
     res.status(201).json({ message: "Agendamiento en proceso", appointment });

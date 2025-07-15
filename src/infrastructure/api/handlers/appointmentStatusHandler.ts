@@ -5,7 +5,14 @@ const appointmentRepo = new DynamoAppointmentRepository();
 
 export const handler = async (event: SQSEvent) => {
   for (const record of event.Records) {
-    const { appointmentId } = JSON.parse(record.body);
+    
+    const { detail } = JSON.parse(record.body);
+    const { appointmentId } = detail;
+
+    if (!appointmentId) {
+      continue;
+    }
+
     await appointmentRepo.updateStatus(appointmentId, "completed");
   }
 };

@@ -13,10 +13,12 @@ export const handler = async (event: SQSEvent) => {
     const appointment: Appointment = JSON.parse(snsEnvelope.Message);
     await repo.saveCountryAppointment(appointment);
 
-    await messaging.publishToEventBridge({
+    const eventBridgePayload = {
       appointmentId: appointment.id,
       status: "completed",
       countryISO: appointment.countryISO
-    }, process.env.EVENT_BUS_NAME!);
+    };
+
+    await messaging.publishToEventBridge(eventBridgePayload, process.env.EVENT_BUS_NAME!);
   }
 };

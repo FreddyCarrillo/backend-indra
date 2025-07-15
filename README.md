@@ -30,28 +30,6 @@ npm run build
 npm start
 ```
 
-## 📚 Endpoints
-
-### POST /users
-Crea un nuevo usuario.
-
-**Body:**
-```json
-{
-  "name": "Juan Pérez",
-  "email": "juan@example.com"
-}
-```
-
-**Response (201):**
-```json
-{
-  "id": "uuid-generado",
-  "name": "Juan Pérez",
-  "email": "juan@example.com"
-}
-```
-
 ## 🏗️ Arquitectura
 
 ```
@@ -180,16 +158,16 @@ export interface AppointmentCountryRepository {
 ```bash
 curl -X POST https://neaxp5i375.execute-api.us-east-1.amazonaws.com/appointments \
   -H "Content-Type: application/json" \
-  -d '{"insuredId":"12345","scheduleId":100,"countryISO":"PE"}'
+  -d '{"insuredId":"12399","scheduleId":100,"countryISO":"PE"}'
 ```
 
 ### Listar citas por asegurado
 
 ```bash
-curl https://neaxp5i375.execute-api.us-east-1.amazonaws.com/appointments/12345
+curl https://neaxp5i375.execute-api.us-east-1.amazonaws.com/appointments/12399
 ```
 
-(Reemplaza `12345` por el insuredId que desees consultar)
+(Reemplaza `12399` por el insuredId que desees consultar)
 
 ---
 

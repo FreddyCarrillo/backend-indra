@@ -7,8 +7,7 @@ provider:
   region: us-east-1
   stage: dev
   environment:
-    SNS_TOPIC_PE_ARN: !Ref SNSTopicPE
-    SNS_TOPIC_CL_ARN: !Ref SNSTopicCL
+    SNS_TOPIC_ARN: !Ref SNSTopic
     SQS_PE_URL: !Ref SQSPE
     SQS_CL_URL: !Ref SQSCL
     EVENT_BUS_NAME: !Ref EventBridgeBus
@@ -25,7 +24,7 @@ provider:
 
 functions:
   appointment:
-    handler: src/infrastructure/api/handlers/appointmentHandler.handler
+    handler: dist/src/infrastructure/api/handlers/appointmentHandler.handler
     events:
       - httpApi:
           path: /appointments
@@ -35,19 +34,19 @@ functions:
           method: GET
 
   appointment_pe:
-    handler: src/infrastructure/api/handlers/appointmentPEHandler.handler
+    handler: dist/src/infrastructure/api/handlers/appointmentPEHandler.handler
     events:
       - sqs:
           arn: !GetAtt SQSPE.Arn
 
   appointment_cl:
-    handler: src/infrastructure/api/handlers/appointmentCLHandler.handler
+    handler: dist/src/infrastructure/api/handlers/appointmentCLHandler.handler
     events:
       - sqs:
           arn: !GetAtt SQSCL.Arn
 
   appointment_confirm:
-    handler: src/infrastructure/api/handlers/appointmentStatusHandler.handler
+    handler: dist/src/infrastructure/api/handlers/appointmentStatusHandler.handler
     events:
       - sqs:
           arn: !GetAtt ConfirmSQS.Arn
@@ -62,6 +61,8 @@ custom:
 
 resources:
   Resources:
+
+    # 🔥 DynamoDB
     AppointmentsDynamoDBTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -87,45 +88,100 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
-    SNSTopicPE:
+
+    # 🔥 SNS + SQS
+    SNSTopic:
       Type: AWS::SNS::Topic
       Properties:
-        TopicName: SNSTopicPE
-    SNSTopicCL:
-      Type: AWS::SNS::Topic
-      Properties:
-        TopicName: SNSTopicCL
+        TopicName: SNSTopic
+
     SQSPE:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: SQS_PE
+
     SQSCL:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: SQS_CL
-    SNSPEtoSQSPE:
+
+    SQSPEPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref SQSPE
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal: "*"
+              Action: "sqs:SendMessage"
+              Resource: !GetAtt SQSPE.Arn
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: !Ref SNSTopic
+
+    SQSCLPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref SQSCL
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal: "*"
+              Action: "sqs:SendMessage"
+              Resource: !GetAtt SQSCL.Arn
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: !Ref SNSTopic
+
+    SNSTopicToSQSPE:
       Type: AWS::SNS::Subscription
       Properties:
-        TopicArn: !Ref SNSTopicPE
+        TopicArn: !Ref SNSTopic
         Protocol: sqs
         Endpoint: !GetAtt SQSPE.Arn
         FilterPolicy:
           countryISO:
             - PE
 
-    SNSCLtoSQSCL:
+    SNSTopicToSQSCL:
       Type: AWS::SNS::Subscription
       Properties:
-        TopicArn: !Ref SNSTopicCL
+        TopicArn: !Ref SNSTopic
         Protocol: sqs
         Endpoint: !GetAtt SQSCL.Arn
         FilterPolicy:
           countryISO:
             - CL
+
+    # 🔥 EventBridge y Confirmación
     EventBridgeBus:
       Type: AWS::Events::EventBus
       Properties:
         Name: AppointmentEventBus
+
+    EventBridgeToSQSTargetRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: EventBridgeToSQSRole
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: events.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: AllowSQSSend
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action: sqs:SendMessage
+                  Resource: !GetAtt ConfirmSQS.Arn
 
     EventBridgeToSQS:
       Type: AWS::Events::Rule
@@ -139,6 +195,7 @@ resources:
         Targets:
           - Arn: !GetAtt ConfirmSQS.Arn
             Id: "TargetSQS"
+            RoleArn: !GetAtt EventBridgeToSQSTargetRole.Arn
 
     ConfirmSQS:
       Type: AWS::SQS::Queue
@@ -146,10 +203,8 @@ resources:
         QueueName: ConfirmSQS
 
 outputs:
-  SNSTopicPEArn:
-    Value: !Ref SNSTopicPE
-  SNSTopicCLArn:
-    Value: !Ref SNSTopicCL
+  SNSTopicArn:
+    Value: !Ref SNSTopic
   SQSPEUrl:
     Value: !Ref SQSPE
   SQSCLUrl:

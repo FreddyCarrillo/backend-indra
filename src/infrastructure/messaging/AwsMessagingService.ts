@@ -28,7 +28,7 @@ export class AwsMessagingService implements MessagingService {
         MessageAttributes: {
           countryISO: {
             DataType: "String",
-            StringValue: message.countryISO
+            StringValue: (message.countryISO || '').trim().toUpperCase()
           }
         }
       })
