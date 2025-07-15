@@ -62,7 +62,6 @@ custom:
 resources:
   Resources:
 
-    # 🔥 DynamoDB
     AppointmentsDynamoDBTable:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -89,7 +88,6 @@ resources:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
 
-    # 🔥 SNS + SQS
     SNSTopic:
       Type: AWS::SNS::Topic
       Properties:
@@ -157,7 +155,6 @@ resources:
           countryISO:
             - CL
 
-    # 🔥 EventBridge y Confirmación
     EventBridgeBus:
       Type: AWS::Events::EventBus
       Properties:
